@@ -1,0 +1,365 @@
+<?php
+include '../config/connection.php';
+include '../session1.php';
+
+$user_id = $_SESSION['id'];
+
+
+
+$reservation_sql = "SELECT * FROM user_reservation_vehicle WHERE user_id = '$user_id'";
+$reservation_result = $conn->query($reservation_sql);
+$reservations = $reservation_result->fetch_all(MYSQLI_ASSOC);
+
+
+$conn->close();
+
+// Function to get status text
+function getStatusText($status) {
+    switch ($status) {
+        case 'pending':
+            return 'Pending';
+        case 'approved':
+            return 'Approved';
+        case 'cancelled':
+            return 'Cancelled';
+        default:
+            return 'Unknown';
+    }
+}
+
+// Function to get status class
+function getStatusClass($status) {
+    switch ($status) {
+        case 'pending':
+            return 'text-warning'; // Use Bootstrap text-warning class for yellow color
+        case 'approved':
+            return 'text-success'; // Use Bootstrap text-success class for green color
+        case 'cancelled':
+            return 'text-danger'; // Use Bootstrap text-danger class for red color
+        default:
+            return '';
+    }
+}
+
+
+
+
+
+try {
+  $query = "SELECT * FROM `user_reservation_vehicle`
+            WHERE status = 'pending' AND user_id = :user_id";
+
+  $stmtPending = $con->prepare($query);
+  $stmtPending->bindParam(':user_id', $user_id);
+  $stmtPending->execute();
+} catch(PDOException $ex) {
+  echo $ex->getMessage();
+  echo $ex->getTraceAsString();
+  exit;
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  // Retrieve rating and comment from form
+  $rating = $_POST['rating'];
+  $comment = $_POST['comment'];
+  $user_id = $_SESSION['id'];
+  $driver_id = $_POST['driver_id']; // Assuming driver_id is submitted via form
+    $reservation_id = $_POST['reservation_id']; // Assuming reservation_id is submitted via form
+  // Other necessary data like user_id, driver_id, and reservation_id can be retrieved here
+
+  // SQL query to insert rating
+  $sql = "INSERT INTO ratings (user_id, driver_id, reservation_id, rating, comment, created_at)
+          VALUES (:user_id, :driver_id, :reservation_id, :rating, :comment, NOW())";
+
+  // Prepare the SQL statement
+  $stmt = $con->prepare($sql);
+
+  // Bind parameters
+  // Replace placeholders with actual data (e.g., $user_id, $driver_id, $reservation_id)
+  $stmt->bindParam(':user_id', $user_id);
+  $stmt->bindParam(':driver_id', $driver_id);
+  $stmt->bindParam(':reservation_id', $reservation_id);
+  $stmt->bindParam(':rating', $rating);
+  $stmt->bindParam(':comment', $comment);
+
+  // Execute the SQL statement
+  try {
+      $stmt->execute();
+      echo "Rating inserted successfully.";
+  } catch (PDOException $e) {
+      echo "Error: " . $e->getMessage();
+  }
+}
+
+// Close the connection
+$con = null;
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../style/bootstrap-5.3.2-dist/css/bootstrap.css">
+  <link rel="stylesheet" href="../style/bootstrap-5.3.2-dist/css/sidebar.css">
+  <link rel="stylesheet" href="../style/bootstrap-5.3.2-dist/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../style/bootstrap-5.3.2-dist/css/line-awesome.min.css">
+  <link rel="stylesheet" href="../style/bootstrap-5.3.2-dist/css/select2.min.css">
+  <link rel="stylesheet" href="../style/morris/morris.css">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://kit.fontawesome.com/b99e675b6e.js"></script>
+  <title>Document</title>
+
+  <style>
+    .breadcrumb {
+  background-color: transparent;
+  margin-bottom: 0;
+}
+
+.list-group-item {
+  border-color: #dee2e6;
+}
+
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+.font-weight-bold {
+  font-weight: bold;
+}
+.star-rating {
+  display: inline-block;
+  font-size: 0;
+}
+
+.star-rating input[type="radio"] {
+  display: none;
+}
+
+.star-rating label {
+  font-size: 20px;
+  color: #ccc;
+  cursor: pointer;
+}
+
+.star-rating label:before {
+  content: '\2605';
+  margin: 5px;
+}
+
+.star-rating input[type="radio"]:checked ~ label:before {
+  color: #ffcc00;
+}
+
+.star-rating input[type="radio"]:hover ~ label:before {
+  color: #ffcc00;
+}
+
+  </style>
+</head>
+<body>
+  <div class="main-wrapper">
+		
+          <?php include_once("components/header.php");?>
+          <?php include_once("components/sidebar.php");?>
+
+          <div class="page-wrapper">
+    
+              <div class="content container-fluid">
+        <div class="page-header">
+          <div class="row align-items-center">
+            <div class="col">
+              <h3 class="page-title"></h3>
+              <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.php">Dashboard</a></li>
+                <li class="breadcrumb-item active">Clients</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+
+
+        <section class="content">
+          <div class="container mt-5">
+            <h2>Your Trip Reservations</h2>
+            <div id="tripTicketList">
+              <ul class="list-group">
+                <!-- Reservation -->
+                <?php foreach($reservations as $reservation): ?>
+                <li id="reservation-item-<?= $reservation['id'] ?>" class="list-group-item border">
+                    <div class="row d-flex">
+                        <div class="col-md-6">
+                            <div>
+                                <span class="font-weight-bold">Title: <?= $reservation['title'] ?></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div>
+                                <span style='font-weight:bold' class="<?= getStatusClass($reservation['status']) ?>">
+                                    Status : <?= $reservation['status'] ?>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <p>Departure: <?= $reservation['departure'] ?></p>
+                            <p>Arrival: <?= $reservation['arrival'] ?></p>
+                        </div>
+                    </div>
+                    <?php if ($reservation['status'] === 'approved'): ?>
+                        <div class="row">
+                            <div class="col">
+                                <button class="btn btn-primary rate-btn" data-toggle="modal" data-target="#rateModal" data-reservation-id="<?= $reservation['id'] ?>">Rate Trip</button>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach ?>
+
+   <!-- Modal -->
+   <div class="modal fade" id="rateModal" tabindex="-1" aria-labelledby="rateModalLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                      <div class="modal-content">
+                          <div class="modal-header">
+                              <h5 class="modal-title" id="rateModalLabel">Rate Trip <?= $reservation['id'] ?></h5>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                              <p>Rate Mr.<?= $reservation['driver_name'] ?></p>
+                              <!-- Star rating input field -->
+                              <div class="star-rating" id="star-rating">
+                                  <input type="radio" name="rating" id="star5" value="5">
+                                  <label for="star5"></label>
+                                  <input type="radio" name="rating" id="star4" value="4">
+                                  <label for="star4"></label>
+                                  <input type="radio" name="rating" id="star3" value="3">
+                                  <label for="star3"></label>
+                                  <input type="radio" name="rating" id="star2" value="2">
+                                  <label for="star2"></label>
+                                  <input type="radio" name="rating" id="star1" value="1">
+                                  <label for="star1"></label>
+                              </div>
+                              <div class="mb-3">
+                                  <label for="comment" class="form-label">Comment:</label>
+                                  <textarea class="form-control" id="comment" name="comment" rows="3"></textarea>
+                              </div>
+                          </div>
+                          <div class="modal-footer">
+                              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                              <button type="button" class="btn btn-primary" id="submit-rating-btn">Submit</button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+
+              </ul>
+             
+
+
+            </div>
+          </div>
+        </section>
+        <section class="content mt-5">
+        <table class="table table-striped">
+                    <thead>
+                    <tr>
+                                <th>No.</th>
+                                <th>Title</th>
+                                <th>Departure</th>
+                                <th>Return</th>
+                                <th>Purpose</th>
+                                <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                            $count = 0;
+                            while($row =$stmtPending->fetch(PDO::FETCH_ASSOC)){
+                                $count++;
+                                ?>
+                                <tr>
+                                  <td><?php echo $count; ?></td>
+                                    <td><?php echo $row['title'];?></td>
+                                    <td><?php echo $row['departure'];?></td>
+                                    <td><?php echo $row['arrival'];?></td>
+                                    <td><?php echo $row['purpose_description'];?></td>
+                                    <td class='text-center'>
+                                    <a href='update/cancelTripStatus.php?id=<?php echo $row['id']; ?>'><button id='statusCancel' class='btn btn-outline-danger '>Cancel</button></a>
+                                    </td>
+                                    </tr>
+                                    <?php
+                            }
+                                ?>
+                        
+                        
+                    </tbody>
+                    </table>
+        </section>
+      </div>
+    </main>
+  </div>
+  </div>
+  
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+$(document).ready(function() {
+    $('.rate-btn').click(function() {
+        // Retrieve reservation ID from the clicked button
+        var reservationId = $(this).data('reservation-id');
+        // Set the reservation ID attribute for the modal dynamically
+        $('#rateModal').attr('data-reservation-id', reservationId);
+        // Show the rate modal
+        $('#rateModal').modal('show');
+    });
+
+    // Handle submission of the rating
+    $('#submit-rating-btn').click(function() {
+        // Retrieve the selected rating and comment
+        var selectedRating = $('.star-rating input[type="radio"]:checked').val();
+        var comment = $('#comment').val();
+        // Retrieve the reservation ID associated with the modal
+        var reservationId = $('#rateModal').data('reservation-id');
+
+        // Send the rating to the server using AJAX for further processing
+        $.ajax({
+            url: 'update/insert_rating.php',
+            method: 'POST',
+            data: {
+                rating: selectedRating,
+                comment: comment,
+                reservation_id: reservationId
+            },
+            success: function(response) {
+                console.log(response);
+                // Remove the rated trip item from the list
+                $('#reservation-item-' + reservationId).remove();
+                // Optionally, you can close the modal after submission
+                $('#rateModal').modal('hide');
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+            }
+        });
+    });
+});
+
+
+
+
+</script>
+
+
+
+      <script src="../style/bootstrap-5.3.2-dist/js/jquery-3.2.1.min.js"></script>
+      <script src="../style/bootstrap-5.3.2-dist/js/popper.min.js"></script>
+      <script src="../style/bootstrap-5.3.2-dist/js/bootstrap.bundle.js"></script>
+  <script src="../style/bootstrap-5.3.2-dist/js/jquery.slimscroll.min.js"></script>
+  <script src="../style/morris/morris.min.js"></script>
+  <script src="../style/bootstrap-5.3.2-dist/js/nav.js"></script>
+  
+</body>
+</html>

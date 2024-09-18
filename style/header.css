@@ -1,0 +1,14 @@
+nav.navbar.navbar-expand-lg.navbar-light.bg-light {
+    background-color: #5E1008 !important;
+}
+a.nav-link {
+    color: white !important;
+}
+.carousel {
+    height: 90vh;
+  }
+
+  /* Customize other styles as needed */
+  .carousel-item {
+    text-align: center;
+  }
